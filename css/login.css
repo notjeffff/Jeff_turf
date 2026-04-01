@@ -1,0 +1,127 @@
+:root {
+    --primary: #3b82f6;      /* Matching your Community Blue */
+    --primary-hover: #2563eb;
+    --bg-dark: #0f172a;      /* Deep Slate Background */
+    --card-bg: #1e293b;      /* Lighter Slate for the Box */
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* --- The Floating Auth Box --- */
+.login-container { 
+    width: 100%; 
+    max-width: 420px; 
+    padding: 20px; 
+    animation: fadeIn 0.6s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.auth-box {
+    background: var(--card-bg);
+    padding: 40px;
+    border-radius: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.auth-header { text-align: center; margin-bottom: 35px; }
+
+.logo { 
+    font-size: 2rem; 
+    font-weight: 800; 
+    cursor: pointer; 
+    margin-bottom: 12px;
+    letter-spacing: -1px;
+}
+.logo span { color: var(--primary); }
+
+.auth-header h2 { margin: 10px 0 8px; font-size: 1.75rem; font-weight: 700; }
+.auth-header p { color: var(--text-muted); font-size: 0.95rem; margin: 0; }
+
+/* --- Form Elements --- */
+.form-group { margin-bottom: 22px; }
+.form-group label { 
+    display: block; 
+    margin-bottom: 8px; 
+    font-size: 0.85rem; 
+    color: var(--text-muted); 
+    font-weight: 600; 
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.form-group input {
+    width: 100%; 
+    padding: 14px 18px; 
+    border-radius: 14px;
+    background: #0f172a; 
+    border: 1px solid #334155; 
+    color: white;
+    font-family: inherit; 
+    font-size: 1rem;
+    box-sizing: border-box; 
+    transition: all 0.3s ease;
+}
+
+.form-group input:focus { 
+    border-color: var(--primary); 
+    outline: none; 
+    background: #1e293b;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15); 
+}
+
+/* --- Action Button --- */
+.btn-auth {
+    width: 100%; 
+    padding: 16px; 
+    background: var(--primary); 
+    border: none;
+    color: white; 
+    border-radius: 14px; 
+    font-weight: 700; 
+    font-size: 1.1rem;
+    cursor: pointer; 
+    transition: all 0.3s ease; 
+    margin-top: 15px;
+}
+
+.btn-auth:hover { 
+    background: var(--primary-hover); 
+    transform: translateY(-2px); 
+    box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.4);
+}
+
+.btn-auth:active { transform: translateY(0); }
+
+/* --- Footer Links --- */
+.auth-footer { 
+    text-align: center; 
+    margin-top: 30px; 
+    font-size: 0.95rem; 
+    color: var(--text-muted); 
+}
+
+.auth-footer a { 
+    color: var(--primary); 
+    text-decoration: none; 
+    font-weight: 700; 
+    transition: 0.3s;
+}
+
+.auth-footer a:hover { color: #fff; text-decoration: underline; }
