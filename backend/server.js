@@ -1,11 +1,20 @@
-require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const User = require('./models/User');
 
 const app = express();
 let isDbConnected = false;
+
+const turfReviewSchema = new mongoose.Schema({
+    userName: { type: String, required: true },
+    userEmail: { type: String, required: true },
+    rating: { type: Number, min: 1, max: 5, required: true },
+    comment: { type: String, default: '' },
+    createdAt: { type: Date, default: Date.now }
+}, { _id: true });
 
 app.use(cors({
     origin: '*',
@@ -14,6 +23,10 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use('/images', express.static(path.join(__dirname, '..'), {
+    index: false,
+    fallthrough: true
+}));
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://admin:admin123@turfarenacluster.8ai5xzs.mongodb.net/turfarena?appName=TurfArenaCluster';
 const DEFAULT_UPI_ID = process.env.UPI_ID || 'turfarena@upi';
@@ -44,7 +57,8 @@ const turfSchema = new mongoose.Schema({
     basePrice: Number,
     sports: [String],
     panoramaUrl: String,
-    image: String
+    image: String,
+    reviews: [turfReviewSchema]
 }, { timestamps: true });
 const Turf = mongoose.model('Turf', turfSchema);
 
@@ -54,12 +68,45 @@ const bookingSchema = new mongoose.Schema({
     userEmail: String,
     slots: [String],
     date: { type: String, default: () => new Date().toISOString().split('T')[0] },
-    status: { type: String, default: 'Pending' },
+    status: { type: String, enum: ['Pending', 'Confirmed', 'Cancelled'], default: 'Confirmed' },
     paymentMethod: { type: String, default: 'UPI' },
     paymentStatus: { type: String, enum: ['Pending', 'Paid'], default: 'Pending' },
-    upiTransactionId: String
+    upiTransactionId: String,
+    refundStatus: { type: String, enum: ['Not Requested', 'Not Eligible', 'Refunded'], default: 'Not Requested' },
+    refundAmount: { type: Number, default: 0 },
+    cancelledAt: Date
 }, { timestamps: true });
 const Booking = mongoose.model('Booking', bookingSchema);
+
+function getBookingStartDateTime(booking) {
+    const bookingDate = String(booking?.date || '').slice(0, 10);
+    const numericSlots = (booking?.slots || [])
+        .map(slot => parseInt(slot, 10))
+        .filter(Number.isInteger)
+        .sort((a, b) => a - b);
+
+    if (!bookingDate || !numericSlots.length) return null;
+
+    const [year, month, day] = bookingDate.split('-').map(Number);
+    const hour = numericSlots[0];
+    if (!year || !month || !day || !Number.isInteger(hour)) return null;
+
+    return new Date(year, month - 1, day, hour, 0, 0, 0);
+}
+
+function getRefundDecision(booking, turf) {
+    const startAt = getBookingStartDateTime(booking);
+    const now = new Date();
+    const isEligible = !!startAt && (startAt.getTime() - now.getTime()) >= (30 * 60 * 1000);
+    const slotCount = Array.isArray(booking?.slots) ? booking.slots.length : 0;
+    const pricePerSlot = Number(turf?.basePrice || 0);
+    const refundAmount = isEligible ? slotCount * pricePerSlot : 0;
+
+    return {
+        isEligible,
+        refundAmount
+    };
+}
 
 const requestSchema = new mongoose.Schema({
     name: String,
@@ -75,6 +122,14 @@ const requestSchema = new mongoose.Schema({
     registeredAt: { type: Date, default: Date.now }
 }, { _id: true });
 
+const reviewSchema = new mongoose.Schema({
+    userName: { type: String, required: true },
+    userEmail: { type: String, required: true },
+    rating: { type: Number, min: 1, max: 5, required: true },
+    comment: { type: String, default: '' },
+    createdAt: { type: Date, default: Date.now }
+}, { _id: true });
+
 const communityPostSchema = new mongoose.Schema({
     postType: { type: String, enum: ['solo', 'team', 'tournament'], required: true },
     sport: { type: String, default: 'Football' },
@@ -88,7 +143,8 @@ const communityPostSchema = new mongoose.Schema({
     maxTeams: { type: Number, default: 0 },
     status: { type: String, default: 'Open' },
     createdBy: { type: String, required: true },
-    requests: [requestSchema]
+    requests: [requestSchema],
+    reviews: [reviewSchema]
 }, { timestamps: true });
 const CommunityPost = mongoose.model('CommunityPost', communityPostSchema);
 
@@ -120,7 +176,8 @@ async function ensureDefaultTurfs() {
             location: 'Velachery',
             basePrice: 1200,
             sports: ['Football', 'Cricket'],
-            panoramaUrl: 'https://pannellum.org/images/alma.jpg'
+            panoramaUrl: 'https://pannellum.org/images/alma.jpg',
+            image: 'aerial-view-grass-field-hockey.jpg'
         },
         {
             name: 'Boundary Line Turf',
@@ -128,7 +185,8 @@ async function ensureDefaultTurfs() {
             location: 'Tambaram',
             basePrice: 800,
             sports: ['Cricket'],
-            panoramaUrl: ''
+            panoramaUrl: '',
+            image: 'izuddin-helmi-adnan-K5ChxJaheKI-unsplash.jpg'
         },
         {
             name: 'SkyLine Sports Hub',
@@ -136,7 +194,8 @@ async function ensureDefaultTurfs() {
             location: 'OMR',
             basePrice: 1000,
             sports: ['Football', 'Cricket'],
-            panoramaUrl: ''
+            panoramaUrl: '',
+            image: 'thomas-park-fDmpxdV69eA-unsplash.jpg'
         }
     ];
 
@@ -236,6 +295,7 @@ app.post('/api/payments/intent', (req, res) => {
 
 app.post('/api/auth/register', async (req, res) => {
     try {
+        if (!isDbConnected) return res.status(503).json({ error: 'Database unavailable. Start MongoDB and try again.' });
         const { name, phone, email, password } = req.body;
         if (!name || !phone || !email || !password) {
             return res.status(400).json({ error: 'name, phone, email, and password are required.' });
@@ -263,6 +323,7 @@ app.post('/api/auth/register', async (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
     try {
+        if (!isDbConnected) return res.status(503).json({ error: 'Database unavailable. Start MongoDB and try again.' });
         const { email, password } = req.body;
         if (!email || !password) {
             return res.status(400).json({ error: 'email and password are required.' });
@@ -322,6 +383,62 @@ app.patch('/api/turfs/:id', async (req, res) => {
     }
 });
 
+app.post('/api/turfs/:id/reviews', async (req, res) => {
+    try {
+        if (!isDbConnected) return res.status(503).json({ error: 'Database unavailable. Check MongoDB connection.' });
+        const turf = await Turf.findById(req.params.id);
+        if (!turf) return res.status(404).json({ error: 'Turf not found' });
+
+        const userName = String(req.body.userName || '').trim();
+        const userEmail = normalizeEmail(req.body.userEmail);
+        const comment = String(req.body.comment || '').trim();
+        const rating = Math.max(1, Math.min(5, parseInt(req.body.rating, 10) || 0));
+
+        if (!userName || !userEmail || !rating) {
+            return res.status(400).json({ error: 'userName, userEmail, and rating are required.' });
+        }
+
+        const existingReview = turf.reviews.find(entry => normalizeEmail(entry.userEmail) === userEmail);
+        if (existingReview) {
+            existingReview.userName = userName;
+            existingReview.rating = rating;
+            existingReview.comment = comment;
+            existingReview.createdAt = new Date();
+        } else {
+            turf.reviews.push({ userName, userEmail, rating, comment });
+        }
+
+        await turf.save();
+        res.status(201).json(turf);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/turfs/:id/reviews', async (req, res) => {
+    try {
+        if (!isDbConnected) return res.status(503).json({ error: 'Database unavailable. Check MongoDB connection.' });
+        const turf = await Turf.findById(req.params.id);
+        if (!turf) return res.status(404).json({ error: 'Turf not found' });
+
+        const userEmail = normalizeEmail(req.body.userEmail || req.query.userEmail);
+        if (!userEmail) {
+            return res.status(400).json({ error: 'userEmail is required.' });
+        }
+
+        const existingReview = turf.reviews.find(entry => normalizeEmail(entry.userEmail) === userEmail);
+        if (!existingReview) {
+            return res.status(404).json({ error: 'Review not found.' });
+        }
+
+        existingReview.deleteOne();
+        await turf.save();
+        res.json(turf);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.delete('/api/turfs/:id', async (req, res) => {
     try {
         if (!isDbConnected) return res.status(503).json({ error: 'Database unavailable. Check MongoDB connection.' });
@@ -362,11 +479,26 @@ app.post('/api/bookings', async (req, res) => {
 app.patch('/api/bookings/:id', async (req, res) => {
     try {
         if (!isDbConnected) return res.status(503).json({ error: 'Database unavailable. Check MongoDB connection.' });
-        const updatedBooking = await Booking.findByIdAndUpdate(
-            req.params.id,
-            { status: req.body.status },
-            { new: true }
-        );
+        const booking = await Booking.findById(req.params.id).populate('turfId');
+        if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+
+        if (req.body.status === 'Cancelled') {
+            if (booking.status === 'Cancelled') {
+                return res.status(400).json({ error: 'Booking already cancelled.' });
+            }
+
+            const refundDecision = getRefundDecision(booking, booking.turfId);
+            booking.status = 'Cancelled';
+            booking.cancelledAt = new Date();
+            booking.refundStatus = refundDecision.isEligible ? 'Refunded' : 'Not Eligible';
+            booking.refundAmount = refundDecision.refundAmount;
+            await booking.save();
+            return res.json(booking);
+        }
+
+        booking.status = req.body.status || booking.status;
+        await booking.save();
+        const updatedBooking = booking;
         res.json(updatedBooking);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -387,6 +519,7 @@ app.post('/api/community', async (req, res) => {
     try {
         if (!isDbConnected) return res.status(503).json({ error: 'Database unavailable. Check MongoDB connection.' });
         const payload = normalizeCommunityPayload(req.body);
+        const adminEmail = process.env.ADMIN_EMAIL || 'admin@turfarena.com';
 
         if (!['solo', 'team', 'tournament'].includes(payload.postType)) {
             return res.status(400).json({ error: 'postType must be solo, team, or tournament.' });
@@ -398,6 +531,12 @@ app.post('/api/community', async (req, res) => {
             return res.status(400).json({ error: 'Solo openings must have at least one open spot.' });
         }
         if (payload.postType === 'tournament') {
+            if (payload.createdBy !== adminEmail) {
+                return res.status(403).json({ error: 'Only admins can create tournaments.' });
+            }
+            if (!payload.eventDate) {
+                return res.status(400).json({ error: 'Tournament date is required.' });
+            }
             payload.maxTeams = payload.maxTeams || 16;
             payload.status = payload.status || 'Registrations Open';
         }
@@ -412,18 +551,37 @@ app.post('/api/community', async (req, res) => {
 app.patch('/api/community/:id', async (req, res) => {
     try {
         if (!isDbConnected) return res.status(503).json({ error: 'Database unavailable. Check MongoDB connection.' });
-        const allowedFields = ['status', 'turf', 'fare', 'prizePool', 'eventDate', 'eventTime', 'maxTeams'];
-        const updates = {};
+        const allowedFields = ['status', 'turf', 'fare', 'prizePool', 'eventDate', 'eventTime', 'maxTeams', 'spots'];
+        const post = await CommunityPost.findById(req.params.id);
+        if (!post) return res.status(404).json({ error: 'Post not found' });
 
         allowedFields.forEach(field => {
-            if (Object.prototype.hasOwnProperty.call(req.body, field)) {
-                updates[field] = req.body[field];
+            if (!Object.prototype.hasOwnProperty.call(req.body, field)) return;
+
+            if (field === 'spots') {
+                post.spots = Math.max(0, parseInt(req.body.spots, 10) || 0);
+                if (post.postType === 'solo') {
+                    post.status = post.spots > 0 ? 'Open' : 'Full';
+                }
+                return;
             }
+
+            post[field] = req.body[field];
         });
 
-        const updatedPost = await CommunityPost.findByIdAndUpdate(req.params.id, updates, { new: true });
-        if (!updatedPost) return res.status(404).json({ error: 'Post not found' });
-        res.json(updatedPost);
+        await post.save();
+        res.json(post);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/community/:id', async (req, res) => {
+    try {
+        if (!isDbConnected) return res.status(503).json({ error: 'Database unavailable. Check MongoDB connection.' });
+        const deletedPost = await CommunityPost.findByIdAndDelete(req.params.id);
+        if (!deletedPost) return res.status(404).json({ error: 'Post not found' });
+        res.json({ success: true, deletedPostId: req.params.id });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -439,7 +597,7 @@ app.post('/api/community/:id/request', async (req, res) => {
         const requesterName = String(req.body.name || '').trim();
         const requesterTeam = String(req.body.teamName || '').trim();
         const requesterPhone = String(req.body.phone || '').trim();
-        const requesterStatus = ['Accepted', 'Rejected', 'Pending'].includes(req.body.status) ? req.body.status : 'Pending';
+        let requesterStatus = ['Accepted', 'Rejected', 'Pending'].includes(req.body.status) ? req.body.status : 'Pending';
         const paymentStatus = req.body.paymentStatus === 'Paid' ? 'Paid' : (post.postType === 'tournament' ? 'Pending' : 'Not Required');
         const paymentAmount = parseAmount(req.body.paymentAmount || req.body.fare || post.fare || 0);
         const upiTransactionId = String(req.body.upiTransactionId || '').trim();
@@ -475,6 +633,10 @@ app.post('/api/community/:id/request', async (req, res) => {
             return res.status(409).json({ error: 'A request from this user or team already exists.' });
         }
 
+        if (post.postType === 'team' || post.postType === 'tournament') {
+            requesterStatus = 'Pending';
+        }
+
         post.requests.push({
             name: requesterName,
             teamName: requesterTeam,
@@ -488,8 +650,8 @@ app.post('/api/community/:id/request', async (req, res) => {
             upiTransactionId
         });
 
-        if (post.postType === 'team' && requesterStatus === 'Accepted') {
-            post.status = 'Matched';
+        if (post.postType === 'team') {
+            post.status = 'Awaiting Admin Approval';
         }
         if (post.postType === 'tournament' && post.maxTeams > 0 && post.requests.length >= post.maxTeams) {
             post.status = 'Full';
@@ -550,6 +712,78 @@ app.patch('/api/community/:postId/request/:requestId', async (req, res) => {
         requestEntry.status = status;
         await post.save();
         res.json(post);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/community/:postId/request/:requestId', async (req, res) => {
+    try {
+        if (!isDbConnected) return res.status(503).json({ error: 'Database unavailable. Check MongoDB connection.' });
+
+        const post = await CommunityPost.findById(req.params.postId);
+        if (!post) return res.status(404).json({ error: 'Post not found' });
+
+        const requestEntry = post.requests.id(req.params.requestId);
+        if (!requestEntry) return res.status(404).json({ error: 'Request not found' });
+
+        const previousStatus = requestEntry.status;
+        if (post.postType === 'solo' && previousStatus === 'Accepted') {
+            post.spots += 1;
+            if (post.spots > 0 && post.status === 'Full') {
+                post.status = 'Open';
+            }
+        }
+
+        requestEntry.deleteOne();
+
+        if (post.postType === 'team') {
+            const acceptedRequest = post.requests.find(entry => entry.status === 'Accepted');
+            post.status = acceptedRequest ? 'Matched' : 'Open';
+        }
+
+        if (post.postType === 'tournament' && post.maxTeams > 0) {
+            const liveTeams = post.requests.filter(entry => entry.status !== 'Rejected').length;
+            if (liveTeams < post.maxTeams && post.status === 'Full') {
+                post.status = 'Registrations Open';
+            }
+        }
+
+        await post.save();
+        res.json(post);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/community/:id/reviews', async (req, res) => {
+    try {
+        if (!isDbConnected) return res.status(503).json({ error: 'Database unavailable. Check MongoDB connection.' });
+
+        const post = await CommunityPost.findById(req.params.id);
+        if (!post) return res.status(404).json({ error: 'Post not found' });
+
+        const userName = String(req.body.userName || '').trim();
+        const userEmail = normalizeEmail(req.body.userEmail);
+        const comment = String(req.body.comment || '').trim();
+        const rating = Math.max(1, Math.min(5, parseInt(req.body.rating, 10) || 0));
+
+        if (!userName || !userEmail || !rating) {
+            return res.status(400).json({ error: 'userName, userEmail, and rating are required.' });
+        }
+
+        const existingReview = post.reviews.find(entry => normalizeEmail(entry.userEmail) === userEmail);
+        if (existingReview) {
+            existingReview.userName = userName;
+            existingReview.rating = rating;
+            existingReview.comment = comment;
+            existingReview.createdAt = new Date();
+        } else {
+            post.reviews.push({ userName, userEmail, rating, comment });
+        }
+
+        await post.save();
+        res.status(201).json(post);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

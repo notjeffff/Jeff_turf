@@ -1,14 +1,12 @@
 :root {
-    --primary: #3b82f6;      /* Matching your Community Blue */
-    --primary-hover: #2563eb;
-    --bg-dark: #0f172a;      /* Deep Slate Background */
-    --card-bg: #1e293b;      /* Lighter Slate for the Box */
-    --text-main: #f8fafc;
-    --text-muted: #94a3b8;
+    --primary-hover: var(--primary-dark);
+    --bg-dark: var(--bg);
+    --text-main: var(--text);
+    --text-muted: var(--muted);
 }
 
 body {
-    background-color: var(--bg-dark);
+    background: var(--page-gradient);
     color: var(--text-main);
     font-family: 'Plus Jakarta Sans', sans-serif;
     margin: 0;
@@ -33,11 +31,23 @@ body {
 }
 
 .auth-box {
-    background: var(--card-bg);
+    background: var(--surface-2);
     padding: 40px;
     border-radius: 28px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border-soft);
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    position: relative;
+    overflow: hidden;
+}
+
+.auth-box::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at top left, color-mix(in srgb, var(--primary) 20%, transparent), transparent 30%),
+        linear-gradient(180deg, transparent, transparent);
+    pointer-events: none;
 }
 
 .auth-header { text-align: center; margin-bottom: 35px; }
@@ -48,6 +58,21 @@ body {
     cursor: pointer; 
     margin-bottom: 12px;
     letter-spacing: -1px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+.logo-badge {
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 30% 30%, #60A5FA, #2563eb 55%, #1d4ed8);
+    color: white;
+    box-shadow: 0 12px 22px rgba(37,99,235,0.3);
+    font-size: 1rem;
 }
 .logo span { color: var(--primary); }
 
@@ -70,9 +95,9 @@ body {
     width: 100%; 
     padding: 14px 18px; 
     border-radius: 14px;
-    background: #0f172a; 
-    border: 1px solid #334155; 
-    color: white;
+    background: var(--surface-1); 
+    border: 1px solid var(--border-strong); 
+    color: var(--text);
     font-family: inherit; 
     font-size: 1rem;
     box-sizing: border-box; 
@@ -82,7 +107,7 @@ body {
 .form-group input:focus { 
     border-color: var(--primary); 
     outline: none; 
-    background: #1e293b;
+    background: var(--surface-2);
     box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15); 
 }
 

@@ -4,45 +4,61 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TurfArena | Community Hub</title>
+    <script src="js/theme.js"></script>
     <style>
     /* PREMIUM FORM INPUTS FOR MODALS */
     .form-group { margin-bottom: 20px; text-align: left; }
-    .form-group label { display: block; margin-bottom: 8px; color: #94a3b8; font-size: 0.9rem; font-weight: 600; }
+    .form-group label { display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 0.9rem; font-weight: 600; }
     
     .form-group input, 
     .form-group select { 
         width: 100%; 
-        padding: 14px 15px; 
-        background: rgba(255, 255, 255, 0.05); 
-        border: 1px solid rgba(255, 255, 255, 0.1); 
-        border-radius: 10px; 
-        color: white; 
+        min-height: 62px;
+        padding: 16px 18px;
+        background: var(--surface-1); 
+        border: 1px solid var(--border-soft); 
+        border-radius: 18px; 
+        color: var(--text); 
         font-family: inherit; 
-        font-size: 1rem; 
+        font-size: 1.05rem; 
+        line-height: 1.2;
         outline: none; 
         transition: all 0.3s ease; 
         box-sizing: border-box;
     }
 
+    .form-group select {
+        appearance: none;
+        background-image:
+            linear-gradient(45deg, transparent 50%, #cbd5e1 50%),
+            linear-gradient(135deg, #cbd5e1 50%, transparent 50%);
+        background-position:
+            calc(100% - 24px) calc(50% - 4px),
+            calc(100% - 16px) calc(50% - 4px);
+        background-size: 8px 8px, 8px 8px;
+        background-repeat: no-repeat;
+        padding-right: 52px;
+    }
+
     /* Glow effect when user clicks the input */
     .form-group input:focus, 
     .form-group select:focus { 
-        border-color: #3b82f6; 
-        background: rgba(255, 255, 255, 0.08); 
+        border-color: var(--primary); 
+        background: var(--surface-2); 
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
     }
 
     /* Fix the dropdown list so it's not white */
     .form-group select option { 
-        background: #0f172a; 
-        color: white; 
+        background: var(--bg-elevated); 
+        color: var(--text); 
     } 
 
     /* THE PREMIUM SUBMIT BUTTON */
     .btn-submit-post { 
         width: 100%; 
         padding: 15px; 
-        background: #3b82f6; 
+        background: var(--primary); 
         color: white; 
         border: none; 
         border-radius: 10px; 
@@ -54,7 +70,7 @@
     }
     
     .btn-submit-post:hover { 
-        background: #2563eb; 
+        background: var(--primary-dark); 
         transform: translateY(-2px);
     }
 </style>
@@ -64,10 +80,11 @@
 </head>
 <body>
     <nav class="nav-bar">
-        <div class="nav-logo" onclick="window.location.href='index.html'">Turf<span>Arena</span></div>
+        <div class="nav-logo" onclick="window.location.href='index.html'"><span class="nav-logo-icon">♛</span> Turf<span>Arena</span></div>
         <div class="nav-links">
             <a href="index.html">Book Turf</a>
             <a href="community.html" class="active">Community</a>
+            <button class="theme-toggle" type="button" data-theme-toggle></button>
             <div id="userAuthActions">
                 <button class="nav-login-btn" onclick="window.location.href='login.html'">Login</button>
             </div>
@@ -76,8 +93,27 @@
 
     <main class="community-container">
         <header class="comm-header">
+            <div class="comm-badge">⚡ Live teams • challenges • tournaments</div>
             <h1>Players <span>Lobby</span></h1>
-            <p>Connect with players, challenge teams, and win tournaments.</p>
+            <p>Find teammates, issue turf wars, host tournaments, and keep the whole community moving.</p>
+            <div class="comm-metrics">
+                <div class="comm-metric-card">
+                    <span>Openings</span>
+                    <strong id="commMetricOpenings">0 live</strong>
+                </div>
+                <div class="comm-metric-card">
+                    <span>Turf Wars</span>
+                    <strong id="commMetricWars">0 live</strong>
+                </div>
+                <div class="comm-metric-card">
+                    <span>Tournaments</span>
+                    <strong id="commMetricTournaments">0 live</strong>
+                </div>
+                <div class="comm-metric-card">
+                    <span>Pending Review</span>
+                    <strong id="commMetricApprovals">0 pending</strong>
+                </div>
+            </div>
         </header>
 
         <div class="comm-tabs">
@@ -105,7 +141,10 @@
         <section id="tournamentsSection" class="comm-section" style="display:none;">
             <div class="section-header">
                 <h2>Active Tournaments</h2>
-                <span style="color:var(--text-muted); font-size:0.9rem;">Weekend Trophies & Leagues</span>
+                <div style="display:flex; align-items:center; gap:14px;">
+                    <span style="color:var(--text-muted); font-size:0.9rem;">Weekend Trophies & Leagues</span>
+                    <button id="hostTournamentBtn" class="btn-post-primary" onclick="openPostModal('tournament')">+ Host Tournament</button>
+                </div>
             </div>
             <div id="tournamentGrid" class="cards-grid"></div>
         </section>
@@ -120,6 +159,7 @@
             <div class="modal-body">
                 <form id="commForm">
                     <input type="hidden" id="postType">
+                    <p id="postModalHint" class="modal-hint">Captains can review player requests and accept them manually.</p>
                     <div class="form-group">
                         <label>Select Sport</label>
                         <select id="commSport">
@@ -164,6 +204,32 @@
                             </div>
                         </div>
                     </div>
+                    <div id="tournamentFields" style="display:none;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Tournament Date</label>
+                                <input type="date" id="commTournamentDate">
+                            </div>
+                            <div class="form-group">
+                                <label>Start Time</label>
+                                <input type="time" id="commTournamentTime">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Entry Fee</label>
+                                <input type="number" id="commTournamentFee" value="499" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Max Teams</label>
+                                <input type="number" id="commMaxTeams" value="16" min="2">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Prize Pool / Format</label>
+                            <input type="text" id="commPrizePool" placeholder="e.g. Winner gets ₹20,000 + trophy">
+                        </div>
+                    </div>
                     <button type="button" class="btn-submit-post" onclick="handlePostSubmit()">Confirm & Post</button>
                 </form>
             </div>
@@ -194,7 +260,7 @@
     <div id="manageRequestsModal" class="modal-backdrop" style="display:none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Manage Applicants</h2>
+                <h2 id="manageModalTitle">Manage Applicants</h2>
                 <button class="close-btn" onclick="closeManageModal()">&times;</button>
             </div>
             <div id="requestsListContainer" class="modal-body" style="max-height: 400px; overflow-y: auto;">
@@ -213,6 +279,7 @@
                     <h3 id="tourneyNameDisplay" style="color: #fde047; margin: 0 0 5px 0;">Tournament Name</h3>
                     <p id="tourneyFeeDisplay" style="color: white; margin: 0; font-size: 0.9rem;">Entry Fee: ₹0</p>
                 </div>
+                <p class="modal-hint">Tournament registrations are reviewed by admin before the team is fully locked in.</p>
                 <div class="form-group">
                     <label>Your Team Name</label>
                     <input type="text" id="tourneyTeamName" placeholder="e.g., Chennai Titans">
@@ -222,12 +289,13 @@
                     <input type="text" id="tourneyPhone" placeholder="10-digit mobile">
                 </div>
                 <div class="form-group">
-                    <label>UPI Transaction ID</label>
-                    <input type="text" id="tourneyTxnId" placeholder="Paste the payment reference after paying">
+                    <label>Mock Payment QR</label>
+                    <canvas id="tourneyQrCanvas" width="180" height="180" style="width:180px; height:180px; background:#fff; border-radius:16px; padding:10px; display:none; margin:0 auto 10px;"></canvas>
+                    <div id="tourneyQrRef" style="text-align:center; color:var(--text-muted); font-size:0.9rem;">Generate QR to create a payment reference</div>
                 </div>
-                <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:16px;">Tap the payment button to open your UPI app, then paste the transaction ID here to finish the registration.</p>
+                <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:16px;">Generate a random QR, then submit the registration with the generated payment reference.</p>
                 <div style="display:flex; gap:10px;">
-                    <button class="btn-submit-post" style="background:#1e293b; color:#fde047; border:1px solid #fde047;" onclick="startTournamentPayment()">Open UPI App</button>
+                    <button class="btn-submit-post" style="background:#1e293b; color:#fde047; border:1px solid #fde047;" onclick="startTournamentPayment()">Generate QR</button>
                     <button class="btn-submit-post" style="background: #fde047; color: #000;" onclick="confirmTourneyRegistration()">Submit Registration</button>
                 </div>
             </div>
@@ -259,12 +327,13 @@
                     <input type="text" id="warChallengerName" placeholder="Enter your team name">
                 </div>
                 <div class="form-group">
-                    <label>UPI Transaction ID</label>
-                    <input type="text" id="warTxnId" placeholder="Paste the payment reference after paying">
+                    <label>Mock Payment QR</label>
+                    <canvas id="warQrCanvas" width="180" height="180" style="width:180px; height:180px; background:#fff; border-radius:16px; padding:10px; display:none; margin:0 auto 10px;"></canvas>
+                    <div id="warQrRef" style="text-align:center; color:var(--text-muted); font-size:0.9rem;">Generate QR to create a payment reference</div>
                 </div>
-                <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:16px;">Open your UPI app, complete the 50% share, then submit the transaction ID to lock the match.</p>
+                <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:16px;">Generate a random QR for the 50% share, then submit to lock the match.</p>
                 <div style="display:flex; gap:10px;">
-                    <button class="btn-submit-post" style="background:#1e293b; color:#ef4444; border:1px solid #ef4444;" onclick="startWarPayment()">Pay via UPI</button>
+                    <button class="btn-submit-post" style="background:#1e293b; color:#ef4444; border:1px solid #ef4444;" onclick="startWarPayment()">Generate QR</button>
                     <button class="btn-submit-post" style="background: var(--accent-red);" onclick="confirmTurfWar()">Lock Match</button>
                 </div>
             </div>

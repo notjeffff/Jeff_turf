@@ -64,10 +64,132 @@ document.getElementById('authForm').addEventListener('submit', function(e) {
     } else {
         // --- REGISTRATION LOGIC ---
         const name = document.getElementById('userName').value.trim();
-        const phone = document.getElementById('userPhone').value.trim();
+        const phone = document.getElementById('userPhone').value.tri
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        m();
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const phonePattern = /^\d{10}$/;
+        const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
 
         if (!name || !phone || !email || !pass) {
             alert("Please fill all fields!");
+            return;
+        }
+
+        if (!emailPattern.test(email)) {
+            alert("❌ Please enter a valid email address!");
+            return;
+        }
+
+        if (!phonePattern.test(phone)) {
+            alert("❌ Please enter a valid 10-digit phone number!");
+            return;
+        }
+
+        if (!passwordPattern.test(pass)) {
+            alert("❌ Password must be at least 8 characters and include uppercase, lowercase, number, and special character.");
             return;
         }
 

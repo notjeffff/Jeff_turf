@@ -1,21 +1,35 @@
 function handleLogin() {
-  const email = document.getElementById('email').value;
-  const pass = document.getElementById('password').value;
+  const email = document.getElementById('email').value.trim();
+  const pass = document.getElementById('password').value.trim();
   const error = document.getElementById('loginError');
+  const storedApiHost = localStorage.getItem('apiHost');
+  const API_HOST = !storedApiHost || storedApiHost === 'http://127.0.0.1:5000'
+    ? 'http://127.0.0.1:5001'
+    : storedApiHost;
+  const BASE_URL = `${API_HOST}/api`;
 
   if (!email || !pass) {
     error.textContent = "Please fill all fields.";
     return;
   }
 
-  // Mock user data
-  const userData = {
-    name: "Rahul Sharma",
-    email: email,
-    phone: "9876543210",
-    joinedDate: "Jan 2026"
-  };
+  error.textContent = "";
 
-  localStorage.setItem('currentUser', JSON.stringify(userData));
-  window.location.href = 'user-dashboard.html';
+  fetch(`${BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password: pass })
+  })
+    .then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Login failed.');
+      }
+      localStorage.setItem('apiHost', API_HOST);
+      localStorage.setItem('currentUser', JSON.stringify(data.user));
+      window.location.href = 'user-dashboard.html';
+    })
+    .catch((err) => {
+      error.textContent = err.message || 'Unable to connect to backend.';
+    });
 }
