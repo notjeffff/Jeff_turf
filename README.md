@@ -188,29 +188,6 @@ The default admin created by the schema/setup is:
 
 Change these values in production or before public sharing.
 
-## Academic Notes
-
-This project is well-suited for a DBMS submission because it demonstrates:
-
-- relational schema design
-- primary and foreign keys
-- normalization
-- unique constraints
-- check constraints
-- one-to-many relationships
-- associative tables for multi-valued data such as booking slots and turf sports
-
-Supporting documents:
-
-- [DATABASE_DESIGN.md](/Users/jeffherbert/Desktop/SEM-4/DBMS/DA3_USING SQL/DATABASE_DESIGN.md)
-- [BACKEND_CODE_EXPLANATION.md](/Users/jeffherbert/Desktop/SEM-4/DBMS/DA3_USING SQL/BACKEND_CODE_EXPLANATION.md)
-- [backend/SQL_MIGRATION_GUIDE.md](/Users/jeffherbert/Desktop/SEM-4/DBMS/DA3_USING SQL/backend/SQL_MIGRATION_GUIDE.md)
-
-## Notes
-
-- Frontend API base URL is managed in [js/api-config.js](/Users/jeffherbert/Desktop/SEM-4/DBMS/DA3_USING SQL/js/api-config.js).
-- The backend serves frontend files from the project root.
-- Some project files in the repository are already modified locally; this README only adds documentation and does not change existing app logic.
 
 ## License
 
