@@ -1,9 +1,4 @@
-const storedApiHost = localStorage.getItem('apiHost');
-const API_HOST = !storedApiHost || storedApiHost === 'http://127.0.0.1:5000'
-    ? 'http://127.0.0.1:5001'
-    : storedApiHost;
-if (storedApiHost !== API_HOST) localStorage.setItem('apiHost', API_HOST);
-const BASE_URL = `${API_HOST}/api`;
+const BASE_URL = window.TurfArenaConfig.apiBaseUrl;
 
 let currentUser = JSON.parse(localStorage.getItem('currentUser'));
 let communityPosts = [];

@@ -2,11 +2,7 @@ function handleLogin() {
   const email = document.getElementById('email').value.trim();
   const pass = document.getElementById('password').value.trim();
   const error = document.getElementById('loginError');
-  const storedApiHost = localStorage.getItem('apiHost');
-  const API_HOST = !storedApiHost || storedApiHost === 'http://127.0.0.1:5000'
-    ? 'http://127.0.0.1:5001'
-    : storedApiHost;
-  const BASE_URL = `${API_HOST}/api`;
+  const BASE_URL = window.TurfArenaConfig.apiBaseUrl;
 
   if (!email || !pass) {
     error.textContent = "Please fill all fields.";
@@ -25,7 +21,6 @@ function handleLogin() {
       if (!res.ok) {
         throw new Error(data.error || 'Login failed.');
       }
-      localStorage.setItem('apiHost', API_HOST);
       localStorage.setItem('currentUser', JSON.stringify(data.user));
       window.location.href = 'user-dashboard.html';
     })
